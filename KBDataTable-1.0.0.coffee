@@ -18,7 +18,7 @@ window.KBDataTableModel = Backbone.Model.extend(
     defaults :
         "searchText": ""
         "columns": []
-        "rows": []
+        "rows": new Backbone.Collection
         "currentPage": 0           
         "pageSize": 20
         "selectedColumn": 0
@@ -27,12 +27,12 @@ window.KBDataTableModel = Backbone.Model.extend(
         "sortDir": []
         "autoSearch": true
         "selectedRow": null
-        "nextFn": null
-        "prevFn": null
-        "searchFn": null
-        "sortFn": null
-        "lastFn": null
-        "firstFn": null
+        "nextFn": null,
+        "prevFn": null,
+        "searchFn": null,
+        "sortFn": null,
+        "lastFn": null,
+        "firstFn": null,
         "selectFn": null
 )
         
@@ -41,7 +41,7 @@ class window.KBDataTableViewModel
     constructor: (@model) ->    
         @searchText = kb.observable @model, 'searchText'
         @columns = kb.observable @model, 'columns'
-        @rows = kb.observable @model, 'rows'
+        @rows = new kb.CollectionObservable @model.attributes.rows
         @currentPage = kb.observable @model, 'currentPage'
         @pageSize = kb.observable @model, 'pageSize'
         @selectedColumn = kb.observable @model, 'selectedColumn'
@@ -62,8 +62,8 @@ class window.KBDataTableViewModel
             if not filter 
                 @rows()
             else
-                ko.utils.arrayFilter @rows(), (item) =>                    
-                    item[@selectedColumn()].toString().toLowerCase().indexOf(filter) > -1
+                ko.utils.arrayFilter @rows(), (item) =>
+                    item.model().get([@selectedColumn()]).toString().toLowerCase().indexOf(filter) > -1
             
         @currentRows = ko.computed =>
             if (@currentPage() + 1) * @pageSize() > @filteredRows().length
@@ -74,13 +74,13 @@ class window.KBDataTableViewModel
         @pageCount = ko.computed =>
             Math.ceil(@filteredRows().length / @pageSize())
         
-        @nextFn = @model.get 'nextFn'
-        @prevFn = @model.get 'prevFn'
-        @searchFn = @model.get 'searchFn'
-        @sortFn = @model.get 'sortFn'
-        @lastFn = @model.get 'lastFn'
-        @firstFn = @model.get 'firstFn'
-        @selectFn = @model.get 'selectFn'
+        @nextFn = @model.get 'nextFn' ? null
+        @prevFn = @model.get 'prevFn' ? null
+        @searchFn = @model.get 'searchFn' ? null
+        @sortFn = @model.get 'sortFn' ? null
+        @lastFn = @model.get 'lastFn' ? null
+        @firstFn = @model.get 'firstFn' ? null
+        @selectFn = @model.get 'selectFn' ? null
 
         if typeof jQuery.fn.jTableScroll is "function"
             jQuery =>
@@ -104,20 +104,20 @@ class window.KBDataTableViewModel
             @currentPage(0)
     search: ->
             @searchFn?()  
-            @filter @throttleSearch()()      
+            @filter @searchText() 
             @currentPage 0
     sort: (index) ->        
-        if typeof @sortFn is "function"
+        if @sortFn is "function"
             @sortFn index
         else
             @sortDir[index] = "A" if not @sortDir[index]
                
             @rows.sort (left, right) =>
                 if @sortDir[index] == "A"
-                    if left[@columns()[index]] == right[@columns()[index]] then 0 else if left[@columns()[index]] < right[@columns()[index]] then -1 else 1
+                    if left.model().get(@columns()[index]) == right.model().get(@columns()[index]) then 0 else if left.model().get(@columns()[index]) < right.model().get(@columns()[index]) then -1 else 1
                 else 
-                    if left[@columns()[index]] == right[@columns()[index]] then 0 else if left[@columns()[index]] > right[@columns()[index]] then -1 else 1
+                    if left.model().get(@columns()[index]) == right.model().get(@columns()[index]) then 0 else if left.model().get(@columns()[index]) > right.model().get(@columns()[index]) then -1 else 1
             @sortDir[index] = @sortDir[index] == "A" ? "D" : "A";
     selectRow: (data) ->
-        @selectedRow(data)
+        @selectedRow data.model().cid
         @selectFn?()
